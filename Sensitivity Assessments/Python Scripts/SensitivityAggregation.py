@@ -14,6 +14,212 @@
 #
 #                        For any enquiries please contact Liam Matear by email: Liam.Matear@jncc.gov.uk
 
+
+########################################################################################################################
+
+#                                      A. MarESA Preparation: Unknowns Automation                                      #
+
+########################################################################################################################
+
+# Import libraries used within the script, assign a working directory and import data
+
+# Import all Python libraries required
+import os
+import numpy as np
+import pandas as pd
+
+#############################################################
+
+# Loading all data into the IDE
+# Setting a working directory for input data set
+os.chdir(r"J:\GISprojects\Marine\Sensitivity\MarESA aggregation\Aggregation_InputData\Unknowns_InputData")
+
+# Import the JNCC Correlation Table as Pandas DataFrames
+CorrelationTable = pd.read_excel(r"J:\GISprojects\Marine\Sensitivity\MarESA aggregation\Aggregation_InputData\Unknowns_InputData\CorrelationTable_C22032019.xlsx", 'Correlations', dtype=str)
+
+# Import all data within the presence absence dataset as Pandas DataFrames
+MarESA = pd.read_excel(r"J:\GISprojects\Marine\Sensitivity\MarESA aggregation\Aggregation_InputData\Unknowns_InputData\MarESA-Data-Extract-2018-11-28_COPY.xlsx", 'Habitats2018-11-28')
+
+# Formatting newly imported data
+
+# Formatting the CorrelationTable DF
+
+# Subset data set to only comprise values where the listed biotopes value is not recorded as False or 'nan'
+CorrelationTable = CorrelationTable.loc[~CorrelationTable['UK Habitat'].isin(['False'])]
+CorrelationTable = CorrelationTable.loc[~CorrelationTable['UK Habitat'].isin(['nan'])]
+
+# Drop any unknown values from the CorrelationTable DF
+CorrelationTable.dropna(subset=['UK Habitat'], inplace=True)
+
+# Subset data set to exclude any EUNIS level 1, 2 and 3 data as these do not have associated sensitivity
+# assessments
+CorrelationTable = CorrelationTable.loc[~CorrelationTable['EUNIS level'].isin(['1', '2', '3'])]
+
+
+#############################################################
+
+# Formatting the MarESA DF
+
+# Adding a EUNIS level column to the DF based on the 'EUNIS_Code' column
+# Function Title: eunis_lvl
+def eunis_lvl(row):
+    """User defined function to pull out all data from the column 'EUNIS_Code' and return an integer dependant on the
+    EUNIS level in response"""
+
+    # Create object oriented variable to store EUNIS_Code data
+    ecode = row['EUNIS_Code']
+    # Create if / elif conditions to produce response dependent on the string length of the inputted data
+    if len(ecode) == 1:
+        return '1'
+    elif len(ecode) == 2:
+        return '2'
+    elif len(ecode) == 4:
+        return '3'
+    elif len(ecode) == 5:
+        return '4'
+    elif len(ecode) == 6:
+        return '5'
+    elif len(ecode) == 7:
+        return '6'
+
+
+# Adding a EUNIS level column to the DF based on the 'EUNIS_Code' column - using the function
+MarESA['EUNIS level'] = MarESA.apply(lambda row: eunis_lvl(row), axis=1)
+
+# Subset data set to exclude any EUNIS level 1, 2 and 3 data as these do not have associated sensitivity
+# assessments
+MarESA = MarESA.loc[~MarESA['EUNIS level'].isin(['1', '2', '3'])]
+
+#############################################################
+
+# Identifying the unique EUNIS codes within each data set
+
+# Create list of all unique values within the CorrelationTable DF
+CorrelationTable_EUNIS = list(CorrelationTable['EUNIS code 2007'].unique())
+
+# Create list of all unique values within the MarESA DF
+MarESA_EUNIS = list(MarESA['EUNIS_Code'].unique())
+
+# 3.3 Create a list of all unique EUNIS codes which are present within the CorrelationTableDF, but not the MarESA DF
+EUNIS_Difference = list(set(CorrelationTable_EUNIS) - set(MarESA_EUNIS))
+
+# Adding the CorrelationTable DF EUNIS data not in the MarESA DF as 'Unknown' values
+
+# Sub-setting the CorrelationTable to only include the EUNIS codes identified within the EUNIS_Difference list
+CorrelationTable_Subset = CorrelationTable.loc[CorrelationTable['EUNIS code 2007'].isin(EUNIS_Difference)]
+
+# Renaming the columns within the CorrelationTable_Subset DF to match the relevant MarESA columns
+CorrelationTable_Subset.rename(columns={'EUNIS code 2007': 'EUNIS_Code', 'EUNIS name 2007': 'JNCC_Name',
+                                        'JNCC 15.03 code': 'JNCC_Code'}, inplace=True)
+
+# Pull out list of all unique pressures
+Pressures = list(MarESA['Pressure'].unique())
+
+# Create subset of all unique pressures and NE codes to be used for the append. Achieve this by filtering the MarESA
+# DataFrame to only include the unique pressures from the pressures list.
+PressuresCodes = MarESA.drop_duplicates(subset=['NE_Code', 'Pressure'], inplace=False)
+
+# Set all values within the 'Resistance', 'ResistanceQoE', 'ResistanceAoE', 'ResistanceDoE', 'Resilience',
+# 'ResilienceQoE', 'ResilienceAoE',  'resilienceDoE',  'Sensitivity',  'SensitivityQoE',  'SensitivityAoE',
+# 'SensitivityDoE' columns to 'Unknown'
+
+PressuresCodes.loc[:, 'Resistance'] = 'Unknown'
+PressuresCodes.loc[:, 'ResistanceQoE'] = 'Unknown'
+PressuresCodes.loc[:, 'ResistanceAoE'] = 'Unknown'
+PressuresCodes.loc[:, 'ResistanceDoE'] = 'Unknown'
+PressuresCodes.loc[:, 'Resilience'] = 'Unknown'
+PressuresCodes.loc[:, 'ResilienceQoE'] = 'Unknown'
+PressuresCodes.loc[:, 'ResilienceAoE'] = 'Unknown'
+PressuresCodes.loc[:, 'resilienceDoE'] = 'Unknown'
+PressuresCodes.loc[:, 'Sensitivity'] = 'Unknown'
+PressuresCodes.loc[:, 'SensitivityQoE'] = 'Unknown'
+PressuresCodes.loc[:, 'SensitivityAoE'] = 'Unknown'
+PressuresCodes.loc[:, 'SensitivityDoE'] = 'Unknown'
+
+# Change the following values to 'Not a Number' / nan values to be filled by the fill_metadata() function
+PressuresCodes.loc[:, 'EUNIS_Code'] = np.nan
+PressuresCodes.loc[:, 'Name'] = np.nan
+PressuresCodes.loc[:, 'JNCC_Name'] = np.nan
+PressuresCodes.loc[:, 'JNCC_Code'] = np.nan
+PressuresCodes.loc[:, 'EUNIS level'] = np.nan
+
+
+# Remove name column from template before insertion
+
+# Create list of all unique EUNIS codes in new correlation table data
+CorrelationEUNIS_list = list(CorrelationTable['EUNIS code 2007'].unique())
+
+# Create template DF
+Template_DF = PressuresCodes
+
+# Create snippet of the correlation table including only the unique biotope codes which do not exist in the MarESA data
+correlation_snippet = CorrelationTable_Subset.loc[CorrelationTable_Subset['EUNIS_Code'].isin(CorrelationEUNIS_list)]
+
+# Remove unwanted erroneous biotope codes from the correlation_snippet data
+correlation_snippet = correlation_snippet[correlation_snippet.EUNIS_Code != 'LS.LMp.Sm.SM16._']
+correlation_snippet = correlation_snippet[correlation_snippet.EUNIS_Code != 'LS.LMp.Sm.SM13._']
+correlation_snippet = correlation_snippet[correlation_snippet.EUNIS_Code != 'LS.LMp.Sm_']
+correlation_snippet = correlation_snippet[correlation_snippet.EUNIS_Code != 'SS.SCS.SCSVS']
+correlation_snippet = correlation_snippet[correlation_snippet.EUNIS_Code != 'Saltmarsh 5 EUNIS types Sm:']
+correlation_snippet = correlation_snippet[correlation_snippet.EUNIS_Code !=
+                                          '104 EUNIS level 5 and 6 types 26 NVC types:']
+
+
+# Create function to complete cross join / create cartesian product between two target DF
+
+def df_crossjoin(df1, df2):
+    """
+    Make a cross join (cartesian product) between two dataframes by using a constant temporary key.
+    Also sets a MultiIndex which is the cartesian product of the indices of the input dataframes.
+    :param df1 dataframe 1
+    :param df1 dataframe 2
+
+    :return cross join of df1 and df2
+    """
+    df1.loc[:, '_tmpkey'] = 1
+    df2.loc[:, '_tmpkey'] = 1
+
+    res = pd.merge(df1, df2, on='_tmpkey').drop('_tmpkey', axis=1)
+    res.index = pd.MultiIndex.from_product((df1.index, df2.index))
+
+    df1.drop('_tmpkey', axis=1, inplace=True)
+    df2.drop('_tmpkey', axis=1, inplace=True)
+
+    return res
+
+
+# Perform cross join to blanket all pressures with unknown values to all EUNIS codes within the correlation_snippet
+correlation_snippet_template = df_crossjoin(correlation_snippet, Template_DF)
+
+# Drop unwanted columns from the correlation_snippet_template data
+correlation_snippet_template.drop(['JNCC_Code_y', 'JNCC_Name_y', 'EUNIS_Code_y', 'EUNIS level_y'], axis=1,
+                                  inplace=True)
+
+# Rename columns to match MarESA data
+correlation_snippet_template.rename(columns={'EUNIS_Code_x': 'EUNIS_Code', 'EUNIS level_x': 'EUNIS level',
+                                             'JNCC_Code_x': 'JNCC_Code', 'JNCC_Name_x': 'JNCC_Name'}, inplace=True)
+
+# Order columns to match MarESA data
+correlation_snippet_template = correlation_snippet_template[['ID', 'JNCC_Code', 'JNCC_Name', 'EUNIS_Code', 'Name',
+                                                            'NE_Code', 'Pressure', 'Resistance', 'ResistanceQoE',
+                                                             'ResistanceAoE', 'ResistanceDoE', 'Resilience',
+                                                             'ResilienceQoE', 'ResilienceAoE', 'resilienceDoE',
+                                                             'Sensitivity', 'SensitivityQoE', 'SensitivityAoE',
+                                                             'SensitivityDoE', 'url', 'EUNIS level']]
+
+# Append the correlation_snippet_template into the MarESA data
+output = MarESA.append(correlation_snippet_template, ignore_index=True)
+
+# Export this as the new MarESA extract to be fed into the MarESA aggregation process below
+output.to_csv(
+    r'J:\GISprojects\Marine\Sensitivity\MarESA aggregation\Aggregation_InputData\Aggregation_InputData\MarESA_Extract.csv',
+    sep=',')
+
+
+########################################################################################################################
+
+#                                            B. MarESA Aggregation Process                                             #
+
 ########################################################################################################################
 
 # Section 1: Introduction
@@ -33,25 +239,34 @@
 
 # Section 2: Initial setup and data import
 
-# Import libraries used within the script, assign a working directory and import data
 
-# Import all Python libraries required
-import os
-import pandas as pd
-
-# Set working directory for file access
-os.chdir(r'ENTER FILE PATH HERE')
+# Setting a working directory for file access
+os.chdir(r'J:\GISprojects\Marine\Sensitivity\MarESA aggregation\Aggregation_InputData\Aggregation_InputData')
 
 # Load required data and assign to object oriented variables
-bioregions = pd.read_excel('ENTER FILE NAME HERE', 'ENTER TARGET TAB HERE')
-maresa = pd.read_excel('ENTER FILE NAME HERE', 'ENTER TARGET TAB HERE')
+bioregions = pd.read_excel('Bioregions_extract.xlsx', 'Bioregions_extract')
+# maresa = pd.read_excel('MarESA-Data-Extract20181128_ForAggregation.xlsx', 'Habitats2018-11-28') OLD ORIGINAL INPUT
+maresa = pd.read_csv(r'J:\GISprojects\Marine\Sensitivity\MarESA aggregation\Aggregation_InputData\Aggregation_InputData\MarESA_Extract.csv')
+
+# Develop a subset of the bioregions data which only contains EUNIS codes of string length 4 or greater
+# This will remove any unwanted EUNIS L1 - L3 from the data
+bioregions = bioregions[bioregions['HabitatCode'].map(len) >= 5]
+
+
+# Following contact between Pressures & Impacts / Mapping Team staff, the biotopes A6.95 and A6.9111 were identified to
+# be erroneous. Therefore, this data are required to be removed from the input data.
+maresa = maresa[maresa.EUNIS_Code != 'A6.95']
+maresa = maresa[maresa.EUNIS_Code != 'A6.9111']
+bioregions = bioregions[bioregions.HabitatCode != 'A6.95']
+bioregions = bioregions[bioregions.HabitatCode != 'A6.9111']
 
 
 ########################################################################################################################
 
-# Section 2a: Defining functions (data formatting)
+# Section 2a: Defining functions (aggregation process data formatting)
 
 # Define all functions which are required within the script to format data for aggregation process
+
 
 # Function Title: df_clean
 def df_clean(df):
@@ -101,28 +316,6 @@ def eunis_col(row):
         return ecode[0:1], ecode[0:2], ecode[0:4], ecode[0:5], ecode[0:6], None
     elif len(ecode) == 7:
         return ecode[0:1], ecode[0:2], ecode[0:4], ecode[0:5], ecode[0:6], ecode[0:7]
-
-
-# Function Title: eunis_lvl
-def eunis_lvl(row):
-    """User defined function to pull out all data from the column 'EUNIS_Code' and return an integer dependant on the
-    EUNIS level in response"""
-
-    # Create object oriented variable to store EUNIS_Code data
-    ecode = row['EUNIS_Code']
-    # Create if / elif conditions to produce response dependent on the string length of the inputted data
-    if len(ecode) == 1:
-        return '1'
-    elif len(ecode) == 2:
-        return '2'
-    elif len(ecode) == 4:
-        return '3'
-    elif len(ecode) == 5:
-        return '4'
-    elif len(ecode) == 6:
-        return '5'
-    elif len(ecode) == 7:
-        return '6'
 
 
 ########################################################################################################################
@@ -358,10 +551,7 @@ def create_confidence(df):
     count_na = df['Count_NotAssessed']
     count_unk = df['Count_Unknown']
 
-    # Create ratio calculation - count_nr added to total ass and removed from total
-    # total_ass = count_high + count_med + count_low + count_ns + count_nr
-
-    # Create new test version without NR
+    # Create ratio calculation
     total_ass = count_high + count_med + count_low + count_ns
     total = total_ass + count_ne + count_na + count_unk
 
@@ -371,7 +561,7 @@ def create_confidence(df):
 # Function Title: categorise_confidence
 def categorise_confidence(df, column):
     """Partition and categorise confidence values by quantile intervals"""
-    if column == 'L2_AssessmentConfidence':
+    if column == 'L2_AggregationConfidenceValue':
         value = df[column]
         if value < 0.33:
             return 'Low'
@@ -379,7 +569,7 @@ def categorise_confidence(df, column):
             return ' Medium'
         elif value >= 0.66:
             return 'High'
-    elif column == 'L3_AssessmentConfidence':
+    elif column == 'L3_AggregationConfidenceValue':
         value = df[column]
         if value < 0.33:
             return 'Low'
@@ -387,7 +577,7 @@ def categorise_confidence(df, column):
             return ' Medium'
         elif value >= 0.66:
             return 'High'
-    elif column == 'L4_AssessmentConfidence':
+    elif column == 'L4_AggregationConfidenceValue':
         value = df[column]
         if value < 0.33:
             return 'Low'
@@ -395,7 +585,7 @@ def categorise_confidence(df, column):
             return ' Medium'
         elif value == 0.66:
             return 'High'
-    elif column == 'L5_AssessmentConfidence':
+    elif column == 'L5_AggregationConfidenceValue':
         return 'NA'
 
 
@@ -432,8 +622,25 @@ def column2(df, column):
 # Rename bioregions column to facilitate merge
 bioregions.rename(columns={'HabitatCode': 'EUNIS_Code'}, inplace=True)
 
-# Merge data to create fact_tbl dataset
-fact_tbl = pd.merge(bioregions, maresa, on='EUNIS_Code')
+# Merge data to create fact_tbl dataset - test
+fact_tbl = pd.merge(bioregions, maresa, on='EUNIS_Code', how='outer', indicator=True)
+
+# Replace all NaN values within the Sensitivity / Resistance / Resilience columns with 'Unknown' within the 'left_only'
+# portion of the fact_tbl DF. This captures all data which is present within the bioregions data and not within the
+# MarESA, counting it as missing / unknown data for the aggregation
+fact_tbl.loc[fact_tbl['_merge'] == 'left_only', 'Sensitivity'] = 'Unknown'
+fact_tbl.loc[fact_tbl['_merge'] == 'left_only', 'Resilience'] = 'Unknown'
+fact_tbl.loc[fact_tbl['_merge'] == 'left_only', 'Resistance'] = 'Unknown'
+
+# Create subset of L4 data which is only contained within the Bioregions data
+bio_only = fact_tbl.loc[fact_tbl['_merge'].isin(['left_only'])]
+bio_only_unique = bio_only['EUNIS_Code'].unique()
+
+# Drop the no longer necessary indicator column from the DF
+fact_tbl.drop(['_merge'], axis=1, inplace=True)
+
+# Merge data to create fact_tbl dataset - original code
+# fact_tbl = pd.merge(bioregions, maresa, on='EUNIS_Code')
 
 # Remove unwanted data by passing the fact_tbl DF to the df_clean() function
 df_clean(fact_tbl)
@@ -452,7 +659,6 @@ fact_tbl[['Level_1', 'Level_2', 'Level_3',
 # Create new 'EUNIS_Level' column which indicates the numerical value of the EUNIS level by passing the fact_tbl to the
 # eunis_lvl() function.
 fact_tbl['EUNIS_Level'] = fact_tbl.apply(lambda row: eunis_lvl(row), axis=1)
-
 
 ########################################################################################################################
 
@@ -553,7 +759,7 @@ L5_sens['L5_UnassessedCount'] = L5_sens.apply(lambda df: combine_unassessedcount
 L5_sens['Level_4'] = L5_sens.apply(lambda df: pd.Series(column4(df)), axis=1)
 
 # Use lambda function to apply create_confidence() function to the DataFrame
-L5_sens['L5_AssessmentConfidence'] = L5_sens.apply(lambda df: create_confidence(df), axis=1)
+L5_sens['L5_AggregationConfidenceValue'] = L5_sens.apply(lambda df: create_confidence(df), axis=1)
 
 
 ########################################################################################################################
@@ -579,7 +785,7 @@ L5_agg_sens.rename(columns={'L5_Sensitivity': 'Sensitivity'}, inplace=True)
 # Drop unwanted columns from 'L5_orig_sub' DataFrame
 L5_orig_sub = L5_orig_sub.drop([
     'ID_x', 'RegionName', 'BiotopePresence', 'EUNIS_Code', 'HabitatName', 'Gaps', 'ID_y',
-    'Name','NE_Code', 'Resistance', 'ResistanceQoE', 'ResistanceAoE', 'ResistanceDoE',
+    'Name', 'NE_Code', 'Resistance', 'ResistanceQoE', 'ResistanceAoE', 'ResistanceDoE',
     'Resilience', 'ResilienceQoE', 'ResilienceAoE', 'resilienceDoE', 'SensitivityQoE',
     'SensitivityAoE', 'SensitivityDoE', 'url', 'Level_1', 'Level_2', 'Level_3', 'Level_4',
     'Level_6', 'EUNIS_Level', 'JNCC_Code'], axis=1, inplace=False)
@@ -616,7 +822,7 @@ L5_orig_sub['L5_UnassessedCount'] = L5_orig_sub.apply(lambda df: combine_unasses
 L5_orig_sub['Level_4'] = L5_orig_sub.apply(lambda df: pd.Series(column4(df)), axis=1)
 
 # Use lambda function to apply create_confidence() function to the DataFrame
-L5_orig_sub['L5_AssessmentConfidence'] = L5_orig_sub.apply(lambda df: create_confidence(df), axis=1)
+L5_orig_sub['L5_AggregationConfidenceValue'] = L5_orig_sub.apply(lambda df: create_confidence(df), axis=1)
 
 # Drop all unwanted columns from L5_orig_sub DataFrame
 L5_orig_sub.drop([
@@ -634,7 +840,7 @@ L5_all = L5_orig_sub.append(L5_agg_sens, sort=True)
 # Format columns into correct order
 L5_all = L5_all[[
     'Pressure', 'SubregionName', 'Level_4', 'Level_5', 'Sensitivity', 'L5_FinalSensitivity',
-    'L5_AssessedCount', 'L5_UnassessedCount', 'L5_AssessmentConfidence']]
+    'L5_AssessedCount', 'L5_UnassessedCount', 'L5_AggregationConfidenceValue']]
 
 
 ########################################################################################################################
@@ -651,7 +857,7 @@ L5_export = L5_export.drop(['Sensitivity'], axis=1, inplace=False)
 
 # Rename and reorder columns within L5_export
 L5_export = L5_export[['Level_4', 'Pressure', 'SubregionName', 'Level_5', 'L5_FinalSensitivity',
-                       'L5_AssessedCount', 'L5_UnassessedCount', 'L5_AssessmentConfidence']]
+                       'L5_AssessedCount', 'L5_UnassessedCount', 'L5_AggregationConfidenceValue']]
 
 
 ########################################################################################################################
@@ -673,6 +879,34 @@ L4_agg = L4_agg.reset_index(inplace=False)
 
 # Reset columns within L4_agg DataFrame
 L4_agg.columns = ['Level_4', 'Pressure', 'SubregionName', 'Sensitivity']
+
+
+###########################
+# NEW STEP - ADDING IN L4 DATA WHICH IS NOT SAMPLED FROM THE L6-L5 Aggregation
+###########################
+
+# Subset EUNIS L4 data from the fact_tbl - maresa / bioregions full join
+L4_maresa_insert = pd.DataFrame(fact_tbl.loc[fact_tbl['EUNIS_Level'].isin(['4'])])
+
+# Refine L4_maresa_insert to only include the desired columns to facilitate an append into the L4_agg DF
+L4_maresa_insert = L4_maresa_insert[['EUNIS_Code', 'Pressure', 'SubregionName', 'Sensitivity']]
+
+# Rename the columns within the L4_bio_insert DF to match those within the L4_agg DF
+L4_maresa_insert.columns = ['Level_4', 'Pressure', 'SubregionName', 'Sensitivity']
+
+# Subset the L4_maresa_insert to only include the Level 4 data which was not aggregated from 6 to 5 to 4
+aggregated_to_L4 = L4_agg['Level_4']
+
+# Subset by the L4_maresa_insert data which does not also appear within the L4 values created from 6 to 5 aggregations
+# (L4_agg)
+L4_maresa_insert = L4_maresa_insert.loc[~L4_maresa_insert['Level_4'].isin(aggregated_to_L4)]
+
+# Append the data back into the L4_agg DF
+L4_agg = L4_agg.append(L4_maresa_insert)
+
+# L4_agg.loc[L4_agg['Level_4'].isin(['A3.72'])] - perform check
+
+###########################
 
 # Apply the counter() function to the DataFrame to count the occurrence of all assessment values
 L4_agg[['High', 'Medium', 'Low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
@@ -719,11 +953,11 @@ L4_sens['L4_UnassessedCount'] = L4_sens.apply(lambda df: combine_unassessedcount
 L4_sens['Level_3'] = L4_sens.apply(lambda df: pd.Series(column3(df, 'Level_4')), axis=1)
 
 # Use lambda function to apply create_confidence() function to the DataFrame
-L4_sens['L4_AssessmentConfidence'] = L4_sens.apply(lambda df: create_confidence(df), axis=1)
+L4_sens['L4_AggregationConfidenceValue'] = L4_sens.apply(lambda df: create_confidence(df), axis=1)
 
 # Format columns into correct order
 L4_sens = L4_sens[['Level_3', 'Pressure', 'SubregionName', 'Level_4', 'Sensitivity', 'L4_Sensitivity',
-                   'L4_FinalSensitivity', 'L4_AssessedCount', 'L4_UnassessedCount', 'L4_AssessmentConfidence']]
+                   'L4_FinalSensitivity', 'L4_AssessedCount', 'L4_UnassessedCount', 'L4_AggregationConfidenceValue']]
 
 
 ########################################################################################################################
@@ -802,7 +1036,7 @@ L3_sens['L3_UnassessedCount'] = L3_sens.apply(lambda df: combine_unassessedcount
 L3_sens['Level_2'] = L3_sens.apply(lambda df: pd.Series(column2(df, 'Level_3')), axis=1)
 
 # Use lambda function to apply create_confidence() function to the DataFrame
-L3_sens['L3_AssessmentConfidence'] = L3_sens.apply(lambda df: create_confidence(df), axis=1)
+L3_sens['L3_AggregationConfidenceValue'] = L3_sens.apply(lambda df: create_confidence(df), axis=1)
 
 # Drop unwanted data from L3_sens DataFrame
 L3_sens = L3_sens.drop([
@@ -885,7 +1119,7 @@ L2_sens['L2_AssessedCount'] = L2_sens.apply(lambda df: combine_assessedcounts(df
 L2_sens['L2_UnassessedCount'] = L2_sens.apply(lambda df: combine_unassessedcounts(df), axis=1)
 
 # Use lambda function to apply create_confidence() function to the DataFrame
-L2_sens['L2_AssessmentConfidence'] = L2_sens.apply(lambda df: create_confidence(df), axis=1)
+L2_sens['L2_AggregationConfidenceValue'] = L2_sens.apply(lambda df: create_confidence(df), axis=1)
 
 # Drop unwanted data from L2_sens DataFrame
 L2_sens = L2_sens.drop([
@@ -896,7 +1130,7 @@ L2_sens = L2_sens.drop([
 
 # Format columns into correct order
 L2_sens = L2_sens[['Level_2', 'Pressure', 'SubregionName', 'L2_FinalSensitivity', 'L2_Sensitivity',
-                   'L2_AssessedCount', 'L2_UnassessedCount', 'L2_AssessmentConfidence']]
+                   'L2_AssessedCount', 'L2_UnassessedCount', 'L2_AggregationConfidenceValue']]
 
 
 ########################################################################################################################
@@ -922,7 +1156,7 @@ L2L3 = pd.merge(L2_export, L3_export)
 L3L4 = pd.merge(L2L3, L4_export)
 
 # Merge EUNIS Levels 4 and 5
-MasterFrame = pd.merge(L3L4, L5_export)
+MasterFrame = pd.merge(L3L4, L5_export, how='outer')
 
 
 ########################################################################################################################
@@ -933,20 +1167,20 @@ MasterFrame = pd.merge(L3L4, L5_export)
 # in a correlating Confidence Category column.
 
 # Create categories for confidence values: EUNIS Level 5
-MasterFrame['L5_ConfidenceCategory'] = MasterFrame.apply(
-    lambda df: categorise_confidence(df, 'L5_AssessmentConfidence'), axis=1)
+MasterFrame['L5_AggregationConfidenceScore'] = MasterFrame.apply(
+    lambda df: categorise_confidence(df, 'L5_AggregationConfidenceValue'), axis=1)
 
 # Create categories for confidence values: EUNIS Level 4
-MasterFrame['L4_ConfidenceCategory'] = MasterFrame.apply(
-    lambda df: categorise_confidence(df, 'L4_AssessmentConfidence'), axis=1)
+MasterFrame['L4_AggregationConfidenceScore'] = MasterFrame.apply(
+    lambda df: categorise_confidence(df, 'L4_AggregationConfidenceValue'), axis=1)
 
 # Create categories for confidence values: EUNIS Level 3
-MasterFrame['L3_ConfidenceCategory'] = MasterFrame.apply(
-    lambda df: categorise_confidence(df, 'L3_AssessmentConfidence'), axis=1)
+MasterFrame['L3_AggregationConfidenceScore'] = MasterFrame.apply(
+    lambda df: categorise_confidence(df, 'L3_AggregationConfidenceValue'), axis=1)
 
 # Create categories for confidence values: EUNIS Level 2
-MasterFrame['L2_ConfidenceCategory'] = MasterFrame.apply(
-    lambda df: categorise_confidence(df, 'L2_AssessmentConfidence'), axis=1)
+MasterFrame['L2_AggregationConfidenceScore'] = MasterFrame.apply(
+    lambda df: categorise_confidence(df, 'L2_AggregationConfidenceValue'), axis=1)
 
 
 ########################################################################################################################
@@ -955,24 +1189,24 @@ MasterFrame['L2_ConfidenceCategory'] = MasterFrame.apply(
 
 # Create correct order for columns within MasterFrame
 MasterFrame = MasterFrame[['Pressure', 'SubregionName', 'Level_2', 'L2_FinalSensitivity', 'L2_AssessedCount',
-                           'L2_UnassessedCount', 'L2_AssessmentConfidence', 'L2_ConfidenceCategory', 'Level_3',
-                           'L3_FinalSensitivity', 'L3_AssessedCount', 'L3_UnassessedCount', 'L3_AssessmentConfidence',
-                           'L3_ConfidenceCategory', 'Level_4', 'L4_FinalSensitivity', 'L4_AssessedCount',
-                           'L4_UnassessedCount', 'L4_AssessmentConfidence', 'L4_ConfidenceCategory', 'Level_5',
-                           'L5_FinalSensitivity', 'L5_AssessedCount', 'L5_UnassessedCount', 'L5_AssessmentConfidence',
-                           'L5_ConfidenceCategory']]
+                           'L2_UnassessedCount', 'L2_AggregationConfidenceValue', 'L2_AggregationConfidenceScore', 'Level_3',
+                           'L3_FinalSensitivity', 'L3_AssessedCount', 'L3_UnassessedCount', 'L3_AggregationConfidenceValue',
+                           'L3_AggregationConfidenceScore', 'Level_4', 'L4_FinalSensitivity', 'L4_AssessedCount',
+                           'L4_UnassessedCount', 'L4_AggregationConfidenceValue', 'L4_AggregationConfidenceScore', 'Level_5',
+                           'L5_FinalSensitivity', 'L5_AssessedCount', 'L5_UnassessedCount', 'L5_AggregationConfidenceValue',
+                           'L5_AggregationConfidenceScore']]
+
+# All 'A2.611' values within the Level_5 column were found to be erroneous and need to be replaced with the string value
+# of 'Not Applicable'
+MasterFrame.loc[MasterFrame['Level_5'] == 'A2.611', 'L5_FinalSensitivity'] = 'Not Applicable'
+
+# All 'B3' values within the Level_2 column were found to be erroneous and need to be replaced with the string value
+# of 'Not Applicable'
+MasterFrame.loc[MasterFrame['Level_2'] == 'B3', 'L2_FinalSensitivity'] = 'Not Applicable'
 
 # Review the newly developed MasterFrame, and export to a .csv format file. To export the data, utilise the export code
 # which is stored as a comment (#) - ensure that you select an appropriate file path when completing this stage.
 
-#       Export MasterFrame in CSV format  - Offshore Only
-MasterFrame.to_csv('testdummy.csv',
+# #       Export MasterFrame in CSV format  - Offshore Only
+MasterFrame.to_csv('test.csv',
                    sep=',')
-
-#       Export MasterFrame in CSV format  - Offshore Only
-# MasterFrame.to_csv('INSERT FILEPATH HERE \INSERT FILE NAME HERE.csv',
-#                   sep=',')
-
-#        Export MasterFrame in CSV format - All - Inshore & Offshore
-# MasterFrame.to_csv('INSERT FILEPATH HERE \INSERT FILE NAME HERE.csv',
-#                   sep=',')
