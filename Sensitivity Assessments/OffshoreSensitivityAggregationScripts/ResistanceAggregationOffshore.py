@@ -647,10 +647,24 @@ def main():
                 return 'Low'
             elif value >= 0.33 and value < 0.66:
                 return ' Medium'
-            elif value == 0.66:
+            elif value >= 0.66:
                 return 'High'
         elif column == 'L5_AggregationConfidenceValue':
-            return 'NA'
+            value = df[column]
+            if value < 0.33:
+                return 'Low'
+            elif value >= 0.33 and value < 0.66:
+                return ' Medium'
+            elif value >= 0.66:
+                return 'High'
+        elif column == 'L6_AggregationConfidenceValue':
+            value = df[column]
+            if value < 0.33:
+                return 'Low'
+            elif value >= 0.33 and value < 0.66:
+                return ' Medium'
+            elif value >= 0.66:
+                return 'High'
 
     # Function Title: column5
     def column5(df, column):
@@ -788,20 +802,15 @@ def main():
     # Use lambda function to apply create_confidence() function to the DataFrame
     L6_processed['L6_AggregationConfidenceValue'] = L6_processed.apply(lambda df: create_confidence(df), axis=1)
 
-    # # Refine DF to only include target data of interest
-    # L6_processed = L6_processed[
-    #     [
-    #     'Level_6', 'Pressure', 'Resistance', 'SubregionName', 'L6_Resistance', 'L6_FinalResistance', 'L6_AssessedCount', 'L6_UnassessedCount',
-    #     'Level_5', 'L6_AggregationConfidenceValue'
-    #     ]
-    # ]
-
     # Format columns into correct order
     L6_processed = L6_processed[
         ['Level_5', 'Pressure', 'SubregionName', 'Level_6', 'Resistance', 'L6_Resistance',
          'L6_FinalResistance',  'L6_AssessedCount', 'L6_UnassessedCount', 'L6_AggregationConfidenceValue']
     ]
 
+    # Remove child biotopes A5.7111 + A5.7112 from aggregation data due to prioritisation of Level 4 assessments.
+    L6_processed = L6_processed[L6_processed['Level_6'] != 'A5.7111']
+    L6_processed = L6_processed[L6_processed['Level_6'] != 'A5.7112']
 
     ####################################################################################################################
 
@@ -835,9 +844,6 @@ def main():
 
     # Extract all original level 5 data and assign to object oriented variable
     original_L5_data = pd.DataFrame(bioreg_maresa_merge.loc[bioreg_maresa_merge['EUNIS_Level'].isin(['5'])])
-
-    # Remove unknowns from the L5 data - subset known / assessed L5 data
-    original_L5_data = original_L5_data[original_L5_data.Resistance != 'Unknown']
 
     # Assign data differences to new object oriented variable using outer merge between data frames
     assessed_L5L6_merge = pd.merge(original_L6_data, original_L5_data, how='outer', on=['Level_5', 'Pressure'],
@@ -922,6 +928,9 @@ def main():
     # Create edited subset of the L5_all DF to remove 'A5.71' from any aggregation data - this will not be removed for
     # EUNIS level 4 assessments (A5.71) which have been completed.
     L5_all = L5_all[L5_all['Level_4'] != 'A5.71']
+    # Remove child biotopes A5.711 + A5.712 from aggregation data due to priotisation of Level 4 assessments.
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.711']
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.712']
 
     ####################################################################################################################
 

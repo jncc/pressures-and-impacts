@@ -638,7 +638,21 @@ def main():
             elif value >= 0.66:
                 return 'High'
         elif column == 'L5_AggregationConfidenceValue':
-            return 'NA'
+            value = df[column]
+            if value < 0.33:
+                return 'Low'
+            elif value >= 0.33 and value < 0.66:
+                return ' Medium'
+            elif value >= 0.66:
+                return 'High'
+        elif column == 'L6_AggregationConfidenceValue':
+            value = df[column]
+            if value < 0.33:
+                return 'Low'
+            elif value >= 0.33 and value < 0.66:
+                return ' Medium'
+            elif value >= 0.66:
+                return 'High'
 
     # Function Title: column5
     def column5(df, column):
@@ -802,6 +816,10 @@ def main():
         'Count_NotSensitive', 'Count_NotRel', 'Count_NoEvidence',
         'Count_NotAssessed', 'Count_Unknown'], axis=1, inplace=False)
 
+    # Remove child biotopes A5.7111 + A5.7112 from aggregation data due to prioritisation of Level 4 assessments.
+    L6_processed = L6_processed[L6_processed['Level_6'] != 'A5.7111']
+    L6_processed = L6_processed[L6_processed['Level_6'] != 'A5.7112']
+
     ####################################################################################################################
 
     # Section 6c: Level 4 to 3 aggregation (creating an aggregated export)
@@ -836,9 +854,6 @@ def main():
 
     # Extract all original level 5 data and assign to object oriented variable
     original_L5_data = pd.DataFrame(bioreg_maresa_merge.loc[bioreg_maresa_merge['EUNIS_Level'].isin(['5'])])
-
-    # Remove unknowns from the L5 data - subset known / assessed L5 data
-    original_L5_data = original_L5_data[original_L5_data.Sensitivity != 'Unknown']
 
     # Assign data differences to new object oriented variable using outer merge between data frames
     assessed_L5L6_merge = pd.merge(original_L6_data, original_L5_data, how='outer', on=['Level_5', 'Pressure'],
@@ -923,6 +938,9 @@ def main():
     # Create edited subset of the L5_all DF to remove 'A5.71' from any aggregation data - this will not be removed for
     # EUNIS level 4 assessments (A5.71) which have been completed.
     L5_all = L5_all[L5_all['Level_4'] != 'A5.71']
+    # Remove child biotopes A5.711 + A5.712 from aggregation data due to priotisation of Level 4 assessments.
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.711']
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.712']
 
     ####################################################################################################################
 
@@ -1283,6 +1301,7 @@ def main():
     # Review the newly developed MasterFrame, and export to a .csv format file. To export the data, utilise the export
     # code which is stored as a comment (#) - ensure that you select an appropriate file path when completing this
     # stage.
+
 
     # Export MasterFrame in CSV format  - Offshore Only
 

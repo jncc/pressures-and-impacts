@@ -391,7 +391,7 @@ def main():
         counthigh = value.count('High')
         countmedium = value.count('Medium')
         countlow = value.count('Low')
-        countvlow = value.count('Very Low')
+        countvlow = value.count('Very')
         countns = value.count('Not sensitive')
         countnr = value.count('Not relevant')
         countne = value.count('No evidence')
@@ -415,7 +415,7 @@ def main():
         high = df['High']
         med = df['Medium']
         low = df['Low']
-        vlow = df['Very Low']
+        vlow = df['Very low']
         nsens = df['Not sensitive']
         # Create object oriented variable for each column of data from DataFrame (not assessment criteria only)
         nrel = df['Not relevant']
@@ -437,8 +437,8 @@ def main():
         if 'Low' in low:
             lo = 'Low'
             value.append(lo)
-        if 'Very Low' in vlow:
-            vlo = 'Very Low'
+        if 'Very low' in vlow:
+            vlo = 'Very low'
             value.append(vlo)
         if 'Not sensitive' in nsens:
             ns = 'Not sensitive'
@@ -465,7 +465,7 @@ def main():
         high = df['High']
         med = df['Medium']
         low = df['Low']
-        vlow = df['Very Low']
+        vlow = df['Very low']
         nsens = df['Not sensitive']
         # Create object oriented variable for each column of data from DataFrame (not assessment criteria only)
         nrel = df['Not relevant']
@@ -487,13 +487,13 @@ def main():
         if 'Low' in low:
             lo = 'Low'
             value.append(lo)
-        if 'Very Low' in vlow:
-            vlo = 'Very Low'
+        if 'Very low' in vlow:
+            vlo = 'Very low'
             value.append(vlo)
         if 'Not sensitive' in nsens:
             ns = 'Not sensitive'
             value.append(ns)
-        if 'High' not in high and 'Medium' not in med and 'Low' not in low and 'Very Low' not in vlow and \
+        if 'High' not in high and 'Medium' not in med and 'Low' not in low and 'Very low' not in vlow and \
                 'Not sensitive' not in nsens:
             if 'Not relevant' in nrel:
                 nr = 'Not relevant'
@@ -519,7 +519,7 @@ def main():
         high = df['High']
         med = df['Medium']
         low = df['Low']
-        vlow = df['Very Low']
+        vlow = df['Very low']
         nsens = df['Not sensitive']
         # Create object oriented variable for each column of data from DataFrame (not assessment criteria only)
         nrel = df['Not relevant']
@@ -647,10 +647,16 @@ def main():
                 return 'Low'
             elif value >= 0.33 and value < 0.66:
                 return ' Medium'
-            elif value == 0.66:
+            elif value >= 0.66:
                 return 'High'
-        elif column == 'L5_AggregationConfidenceValue':
-            return 'NA'
+        elif column == 'L6_AggregationConfidenceValue':
+            value = df[column]
+            if value < 0.33:
+                return 'Low'
+            elif value >= 0.33 and value < 0.66:
+                return ' Medium'
+            elif value >= 0.66:
+                return 'High'
 
     # Function Title: column5
     def column5(df, column):
@@ -717,7 +723,11 @@ def main():
     # maresa_merge to the eunis_lvl() function.
     bioreg_maresa_merge['EUNIS_Level'] = bioreg_maresa_merge.apply(lambda row: eunis_lvl(row), axis=1)
 
-    ############################################################################################################################
+    # De-capitalise the low in all 'Very Low' Resilience scores to enable for differentiation between Low and vLow
+    # analyses within the script
+    bioreg_maresa_merge.loc[bioreg_maresa_merge['Resilience'] == 'Very Low', 'Resilience'] = 'Very low'
+
+    ####################################################################################################################
 
     # Level 6 data only
 
@@ -740,7 +750,7 @@ def main():
     # Apply the counter() function to the DataFrame to count the occurrence of all assessment values
     L6_processed[
         [
-            'High', 'Medium', 'Low', 'Very Low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
+            'High', 'Medium', 'Low', 'Very low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
             'Unknown'
         ]
     ] = L6_processed.apply(lambda df: pd.Series(counter(df['Resilience'])), axis=1)
@@ -749,7 +759,7 @@ def main():
     L6_processed['Count_High'] = L6_processed['High']
     L6_processed['Count_Medium'] = L6_processed['Medium']
     L6_processed['Count_Low'] = L6_processed['Low']
-    L6_processed['Count_vLow'] = L6_processed['Very Low']
+    L6_processed['Count_vLow'] = L6_processed['Very low']
     L6_processed['Count_NotSensitive'] = L6_processed['Not sensitive']
     L6_processed['Count_NotRel'] = L6_processed['Not relevant']
     L6_processed['Count_NoEvidence'] = L6_processed['No evidence']
@@ -759,7 +769,7 @@ def main():
 
     # Create colNames list for use with replacer() function
     colNames = [
-        'High', 'Medium', 'Low', 'Very Low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed', 'Unknown'
+        'High', 'Medium', 'Low', 'Very low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed', 'Unknown'
     ]
 
     # Run replacer() function on one set of newly duplicated columns to convert integers to string values of the
@@ -797,6 +807,10 @@ def main():
          'L6_FinalResilience', 'L6_AssessedCount', 'L6_UnassessedCount', 'L6_AggregationConfidenceValue']
     ]
 
+    # Remove child biotopes A5.7111 + A5.7112 from aggregation data due to prioritisation of Level 4 assessments.
+    L6_processed = L6_processed[L6_processed['Level_6'] != 'A5.7111']
+    L6_processed = L6_processed[L6_processed['Level_6'] != 'A5.7112']
+
     ####################################################################################################################
 
     # Section 6c: Level 4 to 3 aggregation (creating an aggregated export)
@@ -830,9 +844,6 @@ def main():
     # Extract all original level 5 data and assign to object oriented variable
     original_L5_data = pd.DataFrame(bioreg_maresa_merge.loc[bioreg_maresa_merge['EUNIS_Level'].isin(['5'])])
 
-    # Remove unknowns from the L5 data - subset known / assessed L5 data
-    original_L5_data = original_L5_data[original_L5_data.Resilience != 'Unknown']
-
     # Assign data differences to new object oriented variable using outer merge between data frames
     assessed_L5L6_merge = pd.merge(original_L6_data, original_L5_data, how='outer', on=['Level_5', 'Pressure'],
                                    indicator=True)
@@ -856,7 +867,7 @@ def main():
     # Apply the counter() function to the DF to count the occurrence of all assessment values
     aggregated_L6_to_L5[
         [
-            'High', 'Medium', 'Low', 'Very Low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
+            'High', 'Medium', 'Low', 'Very low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
             'Unknown'
         ]
     ] = aggregated_L6_to_L5.apply(lambda df: pd.Series(counter(df['Resilience'])), axis=1)
@@ -865,7 +876,7 @@ def main():
     aggregated_L6_to_L5['Count_High'] = aggregated_L6_to_L5['High']
     aggregated_L6_to_L5['Count_Medium'] = aggregated_L6_to_L5['Medium']
     aggregated_L6_to_L5['Count_Low'] = aggregated_L6_to_L5['Low']
-    aggregated_L6_to_L5['Count_vLow'] = aggregated_L6_to_L5['Very Low']
+    aggregated_L6_to_L5['Count_vLow'] = aggregated_L6_to_L5['Very low']
     aggregated_L6_to_L5['Count_NotSensitive'] = aggregated_L6_to_L5['Not sensitive']
     aggregated_L6_to_L5['Count_NotRel'] = aggregated_L6_to_L5['Not relevant']
     aggregated_L6_to_L5['Count_NoEvidence'] = aggregated_L6_to_L5['No evidence']
@@ -918,6 +929,9 @@ def main():
     # Create edited subset of the L5_all DF to remove 'A5.71' from any aggregation data - this will not be removed for
     # EUNIS level 4 assessments (A5.71) which have been completed.
     L5_all = L5_all[L5_all['Level_4'] != 'A5.71']
+    # Remove child biotopes A5.711 + A5.712 from aggregation data due to priotisation of Level 4 assessments.
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.711']
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.712']
 
     ####################################################################################################################
 
@@ -981,7 +995,7 @@ def main():
     # Apply the counter() function to the DataFrame to count the occurrence of all assessment values
     L4_agg[
         [
-            'High', 'Medium', 'Low', 'Very Low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
+            'High', 'Medium', 'Low', 'Very low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
             'Unknown'
         ]
     ] = L4_agg.apply(lambda df: pd.Series(counter(df['Resilience'])), axis=1)
@@ -990,7 +1004,7 @@ def main():
     L4_agg['Count_High'] = L4_agg['High']
     L4_agg['Count_Medium'] = L4_agg['Medium']
     L4_agg['Count_Low'] = L4_agg['Low']
-    L4_agg['Count_vLow'] = L4_agg['Very Low']
+    L4_agg['Count_vLow'] = L4_agg['Very low']
     L4_agg['Count_NotSensitive'] = L4_agg['Not sensitive']
     L4_agg['Count_NotRel'] = L4_agg['Not relevant']
     L4_agg['Count_NoEvidence'] = L4_agg['No evidence']
@@ -1063,14 +1077,14 @@ def main():
     L3_agg.columns = ['Level_3', 'Pressure', 'SubregionName', 'Resilience']
 
     # Apply the counter() function to the DataFrame to count the occurrence of all assessment values
-    L3_agg[['High', 'Medium', 'Low', 'Very Low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
+    L3_agg[['High', 'Medium', 'Low', 'Very low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
             'Unknown']] = L3_agg.apply(lambda df: pd.Series(counter(df['Resilience'])), axis=1)
 
     # Duplicate all count values and assign to new columns to be replaced by string values later
     L3_agg['Count_High'] = L3_agg['High']
     L3_agg['Count_Medium'] = L3_agg['Medium']
     L3_agg['Count_Low'] = L3_agg['Low']
-    L3_agg['Count_vLow'] = L3_agg['Very Low']
+    L3_agg['Count_vLow'] = L3_agg['Very low']
     L3_agg['Count_NotSensitive'] = L3_agg['Not sensitive']
     L3_agg['Count_NotRel'] = L3_agg['Not relevant']
     L3_agg['Count_NoEvidence'] = L3_agg['No evidence']
@@ -1111,7 +1125,7 @@ def main():
 
     # Drop unwanted data from L3_res DataFrame
     L3_res = L3_res.drop([
-        'Unknown', 'High', 'Medium', 'Low', 'Very Low', 'Not sensitive', 'Not relevant',
+        'Unknown', 'High', 'Medium', 'Low', 'Very low', 'Not sensitive', 'Not relevant',
         'No evidence', 'Not assessed', 'Count_High', 'Count_Medium', 'Count_Low',
         'Count_NotSensitive', 'Count_NotRel', 'Count_NoEvidence',
         'Count_NotAssessed', 'Count_Unknown'], axis=1, inplace=False)
@@ -1147,14 +1161,14 @@ def main():
     L2_agg.columns = ['Level_2', 'Pressure', 'SubregionName', 'Resilience']
 
     # Apply the counter() function to the DataFrame to count the occurrence of all assessment values
-    L2_agg[['High', 'Medium', 'Low', 'Very Low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
+    L2_agg[['High', 'Medium', 'Low', 'Very low', 'Not sensitive', 'Not relevant', 'No evidence', 'Not assessed',
             'Unknown']] = L2_agg.apply(lambda df: pd.Series(counter(df['Resilience'])), axis=1)
 
     # Duplicate all count values and assign to new columns to be replaced by string values later
     L2_agg['Count_High'] = L2_agg['High']
     L2_agg['Count_Medium'] = L2_agg['Medium']
     L2_agg['Count_Low'] = L2_agg['Low']
-    L2_agg['Count_vLow'] = L2_agg['Very Low']
+    L2_agg['Count_vLow'] = L2_agg['Very low']
     L2_agg['Count_NotSensitive'] = L2_agg['Not sensitive']
     L2_agg['Count_NotRel'] = L2_agg['Not relevant']
     L2_agg['Count_NoEvidence'] = L2_agg['No evidence']
@@ -1192,7 +1206,7 @@ def main():
 
     # Drop unwanted data from L2_res DataFrame
     L2_res = L2_res.drop([
-        'Resilience', 'Unknown', 'High', 'Medium', 'Low', 'Very Low','Not sensitive', 'Not relevant',
+        'Resilience', 'Unknown', 'High', 'Medium', 'Low', 'Very low','Not sensitive', 'Not relevant',
         'No evidence', 'Not assessed', 'Count_High', 'Count_Medium', 'Count_Low',
         'Count_NotSensitive', 'Count_NotRel', 'Count_NoEvidence',
         'Count_NotAssessed', 'Count_Unknown'], axis=1, inplace=False)
