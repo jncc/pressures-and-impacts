@@ -21,36 +21,24 @@
 # Import all Python libraries required or data manipulation
 import os
 import time
-import sys
 
 
 # Test the run time of the function
 start = time.process_time()
 
-# Set a working directory for executing all scripts which build individual aggregation outputs
-os.chdir(r"J:\GISprojects\Marine\Sensitivity\MarESA aggregation\MarESA_Aggregation_PythonScripts\Python_Scripts")
-
 # Import all scripts as libraries which are required for the aggregation process
 # Once imported, the library will automatically run as a separate script. This can only be executed via 'Run' of the
 # main AggregationExecution script
 
-# Execute Sensitivity Aggregations (offshore only & inshore/offshore)
+# Set a working directory for executing all Sensitivity scripts which build individual aggregation outputs
+os.chdir(r"J:\GISprojects\Marine\Sensitivity\MarESA aggregation\MarESA_Aggregation_PythonScripts\Python_Scripts\OffshoreSensitivityAggregationScripts")
+
+# Execute Sensitivity Aggregations (offshore only)
 import SensitivityAggregationOffshore
-
-# Execute Resistance Aggregations (offshore only & inshore/offshore)
+# Execute Resistance Aggregations (offshore only)
 import ResistanceAggregationOffshore
-
-# Execute Resilience Aggregations (offshore only & inshore/offshore)
+# Execute Resilience Aggregations (offshore only)
 import ResilienceAggregationOffshore
-
-# Execute BH3 Sensitivity Calculation
-import BH3_SensitivityCalculation
-
-# Execute the Annex 1 Feature/Sub-feature aggregation
-import Annex1SubTypeAggregation
-
-# Execute the Annex 1 Feature/Sub-feature aggregation
-import Annex1SubTypeAggregationDepth
 
 # Execute the Aggregation Audit Log
 import AggregationAuditLog
