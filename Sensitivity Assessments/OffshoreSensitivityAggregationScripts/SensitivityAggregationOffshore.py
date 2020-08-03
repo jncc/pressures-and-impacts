@@ -41,11 +41,11 @@ def main():
     # Setting a working directory for input data set
     os.chdir(r"J:\GISprojects\Marine\Sensitivity\MarESA aggregation\Aggregation_InputData\Unknowns_InputData")
 
-    # Import the JNCC Correlation Table as Pandas DataFrames
-    CorrelationTable = pd.read_excel(r"J:\GISprojects\Marine\Sensitivity\MarESA aggregation\Aggregation_InputData\Unknowns_InputData\CorrelationTable_C22032019.xlsx", 'Correlations', dtype=str)
+    # Import the JNCC Correlation Table as Pandas DataFrames - updated with CorrelationTable_C16042020
+    CorrelationTable = pd.read_excel(r"J:\GISprojects\Marine\Sensitivity\MarESA aggregation\Aggregation_InputData\Unknowns_InputData\CorrelationTable_C16042020.xlsx", 'Correlations', dtype=str)
 
     # Import all data within the presence absence dataset as Pandas DataFrames
-    MarESA = pd.read_excel(r"Z:\Marine\Evidence\MarLIN\Deliverables\MarESA_sensitivity_extracts\20190923\MarESA-Data-Extract-20190923.xlsx", 'Biotopes-20190731', dtype={'EUNIS_Code': str})
+    MarESA = pd.read_excel(r"\\jncc-corpfile\gis\Reference\Marine\Sensitivity\MarESA-Data-Extract-2020-04-24.xlsx", 'Biotopes2020-04-24', dtype={'EUNIS_Code': str})
 
     # Formatting newly imported data
 
@@ -61,6 +61,8 @@ def main():
     # Subset data set to exclude any EUNIS level 1, 2 and 3 data as these do not have associated sensitivity
     # assessments
     CorrelationTable = CorrelationTable.loc[~CorrelationTable['EUNIS level'].isin(['1', '2', '3'])]
+
+    # test = CorrelationTable.loc[CorrelationTable['EUNIS code 2007'].isin(['A4.27'])]
 
     #############################################################
 
@@ -262,7 +264,7 @@ def main():
 
     # Define the bioregions object containing the updated outputs from the Bioregions 2017 Contract - read the last
     # edited file
-    bioregions = pd.read_excel(bioreg_files[0])
+    bioregions = pd.read_excel(bioreg_files[0], dtype=str)
 
     ############################################################
 
@@ -315,6 +317,8 @@ def main():
 
     # Develop a subset of the bioregions data which only contains EUNIS codes of string length 4 or greater
     # This will remove any unwanted EUNIS L1 - L3 from the data
+    # Convert bioregions 'HabitatCode' to string
+    bioregions['HabitatCode'] = bioregions['HabitatCode'].astype(str)
     bioregions = bioregions[bioregions['HabitatCode'].map(len) >= 5]
 
     # Following contact between Pressures & Impacts / Mapping Team staff, the biotopes A6.95 and A6.9111 were identified
@@ -342,6 +346,8 @@ def main():
         df['Sensitivity'].replace(["Not relevant (NR)"], "Not relevant", inplace=True)
         df['Sensitivity'].replace(["No evidence (NEv)"], "No evidence", inplace=True)
         df['Sensitivity'].replace(["Not assessed (NA)"], "Not assessed", inplace=True)
+        df['Resistance'].replace(["Not Assessed (NA)"], "Not assessed", inplace=True)
+
         return df
 
     # Function Title: unwanted_char
@@ -495,8 +501,9 @@ def main():
                 value.append(nass)
         if 'NA' in high and 'NA' in med and 'NA' in low and 'NA' in nsens and 'NA' in nrel and 'NA' in nev and \
                 'NA' in n_ass:
-            un = 'Unknown'
-            value.append(un)
+            if 'Unknown' in un:
+                unk = 'Unknown'
+                value.append(unk)
 
         s = ', '.join(value)
         return str(s)
@@ -549,7 +556,7 @@ def main():
             if 'Unknown' in un:
                 unk = 'Not Applicable'
                 value.append(unk)
-        s = ', '.join(value)
+        s = ', '.join(set(value))
         return str(s)
 
     # Function Title: combine_unassessedcounts
@@ -586,7 +593,7 @@ def main():
         if 'NA' in nev and 'NA' in n_ass and 'NA' in un:
             napp = 'Not Applicable'
             values.append(napp)
-        s = ', '.join(values)
+        s = ', '.join(set(values))
         return str(s)
 
     # Function Title: create_confidence
@@ -608,7 +615,7 @@ def main():
         total_ass = count_high + count_med + count_low + count_ns
         total = total_ass + count_ne + count_na + count_unk
 
-        return total_ass / total if total else 0
+        return round(total_ass / total, 3) if total else 0
 
     # Function Title: categorise_confidence
     def categorise_confidence(df, column):
@@ -714,13 +721,14 @@ def main():
     bioregions.rename(columns={'HabitatCode': 'EUNIS_Code'}, inplace=True)
 
     # Merge bioregions and marESA data together
-    bioreg_maresa_merge = pd.merge(bioregions, maresa, on='EUNIS_Code', how='outer', indicator=True)
+    # bioreg_maresa_merge = pd.merge(bioregions, maresa, on='EUNIS_Code', how='outer', indicator=True)
+    bioreg_maresa_merge = pd.merge(bioregions, maresa, on='EUNIS_Code')
 
     # # Create subset of L4 data which is only contained within the Bioregions data
     # bio_only = bioreg_maresa_merge.loc[bioreg_maresa_merge['_merge'].isin(['left_only'])]
 
     # Drop the no longer necessary indicator column from the DF
-    bioreg_maresa_merge.drop(['_merge'], axis=1, inplace=True)
+    #bioreg_maresa_merge.drop(['_merge'], axis=1, inplace=True)
 
     # Refine the DF to remove the currently not needed Region 8 (deep dea)
     bioreg_maresa_merge = bioreg_maresa_merge[bioreg_maresa_merge['SubregionName'] != 'Region 8 (deep-sea)']
@@ -822,7 +830,7 @@ def main():
 
     ####################################################################################################################
 
-    # Section 6c: Level 4 to 3 aggregation (creating an aggregated export)
+    # Section 6c: Creating an aggregated export
 
     # Create DataFrame for master DataFrame at end of script
     L6_export = L6_processed
@@ -937,10 +945,14 @@ def main():
 
     # Create edited subset of the L5_all DF to remove 'A5.71' from any aggregation data - this will not be removed for
     # EUNIS level 4 assessments (A5.71) which have been completed.
-    L5_all = L5_all[L5_all['Level_4'] != 'A5.71']
-    # Remove child biotopes A5.711 + A5.712 from aggregation data due to priotisation of Level 4 assessments.
+    # L5_all = L5_all[L5_all['Level_4'] != 'A5.71']
+    # Remove child biotopes A5.711 + A5.712 from aggregation data due to prioritisation of Level 4 assessments.
     L5_all = L5_all[L5_all['Level_5'] != 'A5.711']
-    L5_all = L5_all[L5_all['Level_5'] != 'A5.712']
+    # L5_all = L5_all[L5_all['Level_5'] != 'A5.712']
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.713']
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.714']
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.715']
+    L5_all = L5_all[L5_all['Level_5'] != 'A5.716']
 
     ####################################################################################################################
 
@@ -973,6 +985,10 @@ def main():
 
     # Reset columns within L4_agg DataFrame
     L4_agg.columns = ['Level_4', 'Pressure', 'SubregionName', 'Sensitivity']
+
+    # Add new step to remove the A5.71 biotope from the L4_agg to ensure this is added back in as a new L4 biotope
+    # which has not been aggregated
+    L4_agg = L4_agg[L4_agg['Level_4'] != 'A5.71']
 
     ###########################
     # NEW STEP - ADDING IN L4 DATA WHICH IS NOT SAMPLED FROM THE L6-L5 Aggregation
@@ -1297,6 +1313,10 @@ def main():
     # All 'B3' values within the Level_2 column were found to be erroneous and need to be replaced with the string value
     # of 'Not Applicable'
     MasterFrame.loc[MasterFrame['Level_2'] == 'B3', 'L2_FinalSensitivity'] = 'Not Applicable'
+
+    # Remove all A6 biotopes from the MasterFrame (temporary fix 01/07/2020)
+    MasterFrame = MasterFrame[MasterFrame.Level_2 != 'A6']
+
 
     # Review the newly developed MasterFrame, and export to a .csv format file. To export the data, utilise the export
     # code which is stored as a comment (#) - ensure that you select an appropriate file path when completing this
