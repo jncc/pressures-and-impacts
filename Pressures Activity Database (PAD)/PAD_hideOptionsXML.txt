@@ -1,0 +1,9 @@
+# XML required to hide options available within MS Access file when creating a public facing version of the documennt
+# Please see StackOverflow article for full detail of method: https://stackoverflow.com/questions/7907255/hide-access-options
+
+<customUI xmlns="http://schemas.microsoft.com/office/2009/07/customui">
+<ribbon startFromScratch="false"></ribbon>
+<backstage>
+<button idMso="ApplicationOptionsDialog" visible="false"/>
+</backstage>
+</customUI>

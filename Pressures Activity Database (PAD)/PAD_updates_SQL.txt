@@ -1,0 +1,39 @@
+# The following document contains a series of SQL queries which enable the user to identify new Natural England (NE) 
+# Activities/Pressures which are not contained within the PAD and update the PAD to account for new data. 
+
+# 1. Query Activity data in JNCC PAD - not in NE New 
+
+SELECT DISTINCT(ActivityTitle)
+FROM Activities AS a
+WHERE NOT EXISTS 
+(SELECT * FROM Activity_Pressure_NE_New as b 
+WHERE a.ActivityTitle = b.ActivityName
+);
+
+
+# 2. Query Activity data in NE New - not in JNCC PAD 
+
+SELECT DISTINCT(ActivityName)
+FROM Activity_Pressure_NE_New as a 
+WHERE NOT EXISTS 
+(SELECT * FROM Activities as b 
+WHERE a.ActivityName = b.ActivityTitle
+);
+
+# 3. Query to test no. of records to be updated 
+
+SELECT *
+FROM APJoinMaster as APJ
+WHERE APJ.EvidenceStandardID = 2 
+AND APJ.ActivityID <> 57
+AND APJ.ActivityID <> 58
+AND APJ.ActivityID <> 70
+AND APJ.ActivityID <> 108;
+
+
+# 4. Query to update all records which fit set criteria 
+
+UPDATE Activity_Pressure_NE_New INNER JOIN (APJustification INNER JOIN (Activities INNER JOIN APJoinMaster ON Activities.ActivityID = APJoinMaster.ActivityID) ON APJustification.APJustificationID = APJoinMaster.APJustificationID) ON (Activities.ActivityTitle = Activity_Pressure_NE_New.ActivityName) AND (Activity_Pressure_NE_New.PressureCode = APJoinMaster.PressureID) SET Activity_Pressure_NE_New.Justification = [Activity_Pressure_NE_New].[Justification]
+WHERE (([Activity_Pressure_NE_New].[ActivityName]=[Activities].[ActivityTitle]
+and [Activities].[ActivityID]=[APJoinMaster].[ActivityID]
+and [Activity_Pressure_NE_New].[PressureCode]=[APJoinMaster].[PressureID]));
